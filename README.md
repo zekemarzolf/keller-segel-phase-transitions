@@ -6,14 +6,13 @@ Aiming to discover and investigate numerical phase transitions in which behavior
 Analyze transitions with persistent homology and multiple approaches such as topology, information transport, and other qualitative measures
 
 ## Model:
-Using the Keller-Segel model for chemotaxis with an extra saturation term for stability:
-$$\frac{\partial u}{\partial t} = D_u\nabla^2u - \sigma (u) \chi \nabla \cdot (u \nabla v) $$
+Using the Keller-Segel model for chemotaxis with an extra logistic growth term for stability where K represents the maximum density of cells at any point:
+$$\frac{\partial u}{\partial t} = D_u\nabla^2u - \chi \nabla \cdot (u \nabla v) (\frac{K-u}{K})$$
 $$\frac{\partial v}{\partial t} = D_v\nabla^2v - \alpha v + \beta u $$
-$$\sigma (u) = $$
 ## Required Libraries:
-1. numpy
-2. cupy
-3. vispy
-4. scipy
-5. matplotlib
+1. NumPy
+2. CuPy
+3. VisPy
+4. SciPy
+5. Matplotlib
 6. PyQt6 or PySide6

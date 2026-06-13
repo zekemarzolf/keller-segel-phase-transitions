@@ -9,7 +9,7 @@ DT = 1
 N = 512
 DU = 0.2
 DV = 1
-SENSITIVITY = 1
+SENSITIVITY = 2.1
 ALPHA = 0.1
 BETA = 1
 #SATURATION = 0.07
@@ -69,13 +69,15 @@ def saturation(x, u):
     numerator = -(u - 2)
     denominator = 1 + np.abs(u - 2)
     inside = numerator / denominator + 1
-    #saturation = 0.6 * (inside ** 1)
+    saturation = 0.6 * (inside ** 1)
     return saturation * x
 
 canvas = scene.SceneCanvas(keys='interactive', size=(1000, 1000), show=True)
 grid = canvas.central_widget.add_grid()
 view = grid.add_view(row=0, col=0)
-image = scene.visuals.Image(densities.astype(np.float32), cmap='viridis', clim=(0.5, 4), parent=view.scene)
+image1 = scene.visuals.Image(densities.astype(np.float32), cmap='viridis', clim=(0.5, 4), parent=view.scene)
+image2 = scene.visuals.Image(chemoattractant.astype(np.float32), cmap='viridis', clim=(0, 30), parent=view.scene)
+image2.transform = scene.STTransform(translate=(N+10, 0, 0))
 view.camera = scene.cameras.PanZoomCamera(aspect=None)
 view.camera.set_range(x=(0, densities.shape[0]), y=(0, densities.shape[1]))
 
@@ -87,7 +89,8 @@ def update(ev):
     chemoattractant_gpu = implicit_diffusion(chemoattractant_gpu, DV) + (BETA * densities_gpu - ALPHA * chemoattractant_gpu) * DT
     densities = cp.asnumpy(cp.clip(densities_gpu, 0, None))
     chemoattractant = cp.asnumpy(cp.clip(chemoattractant_gpu, 0, None))
-    image.set_data(densities.astype(np.float32))
+    image1.set_data(densities.astype(np.float32))
+    image2.set_data(chemoattractant.astype(np.float32))
     canvas.update()
 
 timer = app.Timer(interval=0.01, connect=update, start=True)
