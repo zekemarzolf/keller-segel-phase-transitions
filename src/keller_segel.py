@@ -5,14 +5,14 @@ from vispy import plot
 from vispy import scene, app, color
 from scipy.linalg import solve_banded
 
-DT = 1
+DT = 0.1
 N = 512
 DU = 0.2
 DV = 1
-SENSITIVITY = 2.1
+SENSITIVITY = 1
+SATURATION_RATE = 1
 ALPHA = 0.1
 BETA = 1
-#SATURATION = 0.07
 CAPACITY = 4
 densities = np.ones((N, N)) * 2.0
 densities += np.random.uniform(-0.1, 0.1, (N, N))
@@ -57,20 +57,16 @@ def implicit_diffusion(u, diff_coefficient):
 
 def explicit_nonlinear(u, v):
     grad_x, grad_y = spectral_gradient(v)
-    flux_x = u * grad_x
-    flux_y = u * grad_y
+    sat = saturation(u, SENSITIVITY)
+    flux_x = u * grad_x * sat
+    flux_y = u * grad_y * sat
     div_uv = spectral_divergence(flux_x, flux_y)
-    saturation = SENSITIVITY * ((CAPACITY - u) / CAPACITY)
-    #sat = saturation(SENSITIVITY, u)
-    change = saturation[:,:] * div_uv[:,:]
-    return u * change * DT
+    #logistic = SENSITIVITY * ((CAPACITY - u) / CAPACITY)
+    return u * div_uv * DT
 
-def saturation(x, u):
-    numerator = -(u - 2)
-    denominator = 1 + np.abs(u - 2)
-    inside = numerator / denominator + 1
-    saturation = 0.6 * (inside ** 1)
-    return saturation * x
+def saturation(u, x):
+    sigmoid = 1 / (1 + np.exp(1.5 * (u - 2)))
+    return sigmoid * x
 
 canvas = scene.SceneCanvas(keys='interactive', size=(1000, 1000), show=True)
 grid = canvas.central_widget.add_grid()
