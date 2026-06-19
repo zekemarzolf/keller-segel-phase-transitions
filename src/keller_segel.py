@@ -9,15 +9,17 @@ DT = 0.1
 N = 512
 DU = 0.2
 DV = 1
-SENSITIVITY = 1
-SATURATION_RATE = 1
+SENSITIVITY = 5
+SATURATION = 0.1
 ALPHA = 0.1
 BETA = 1
-CAPACITY = 4
-densities = np.ones((N, N)) * 2.0
+CAPACITY = 2
+densities = np.ones((N, N))
 densities += np.random.uniform(-0.1, 0.1, (N, N))
-chemoattractant = np.ones((N, N)) * 2.0
+chemoattractant = np.ones((N, N))
 chemoattractant += np.random.uniform(-0.1, 0.1, (N, N))
+
+# SPECTRAL METHODS
 
 def spectral_gradient(u):
     u_hat = cp.fft.fft2(u)
@@ -44,6 +46,24 @@ def spectral_divergence(ux, uy):
     div = cp.fft.ifft2(div_hat).real
     return div
 
+# FINITE DIFFERENCE METHODS
+
+def finite_gradient(u):
+    grad_y, grad_x = cp.gradient(u)
+    return grad_x, grad_y
+
+def finite_divergence(ux, uy):
+    ux_div = cp.empty((N,N))
+    ux_div[:,1:-1] = (ux[:,2:] - ux[:,:-2]) / 2
+    ux_div[:,0] =  ux[:,1] - ux[:,0]
+    ux_div[:,-1] =  ux[:,-1] - ux[:,-2]
+    uy_div = cp.empty((N,N))
+    uy_div[1:-1,:] = (uy[2:,:] - uy[:-2,:]) / 2
+    uy_div[0,:] =  uy[1,:] - uy[0,:]
+    uy_div[-1,:] =  uy[-1,:] - uy[-2,:]
+    u_div = ux_div + uy_div
+    return u_div
+
 def implicit_diffusion(u, diff_coefficient):
     u_hat = cp.fft.fft2(u)
     Ny, Nx = u.shape
@@ -57,16 +77,18 @@ def implicit_diffusion(u, diff_coefficient):
 
 def explicit_nonlinear(u, v):
     grad_x, grad_y = spectral_gradient(v)
-    sat = saturation(u, SENSITIVITY)
-    flux_x = u * grad_x * sat
-    flux_y = u * grad_y * sat
+    #sat = saturation(u, SENSITIVITY)
+    flux_x = u * grad_x
+    flux_y = u * grad_y
     div_uv = spectral_divergence(flux_x, flux_y)
-    #logistic = SENSITIVITY * ((CAPACITY - u) / CAPACITY)
-    return u * div_uv * DT
+    return div_uv * SENSITIVITY * DT
 
 def saturation(u, x):
     sigmoid = 1 / (1 + np.exp(1.5 * (u - 2)))
     return sigmoid * x
+
+def logistic_growth(u):
+    return SATURATION * u * ((CAPACITY - u) / CAPACITY)
 
 canvas = scene.SceneCanvas(keys='interactive', size=(1000, 1000), show=True)
 grid = canvas.central_widget.add_grid()
@@ -81,10 +103,11 @@ def update(ev):
     global densities, chemoattractant
     densities_gpu = cp.asarray(densities)
     chemoattractant_gpu = cp.asarray(chemoattractant)
-    densities_gpu = implicit_diffusion(densities_gpu, DU) - explicit_nonlinear(densities_gpu, chemoattractant_gpu)
+    densities_gpu = implicit_diffusion(densities_gpu, DU) - explicit_nonlinear(densities_gpu, chemoattractant_gpu) + logistic_growth(densities_gpu) * DT
     chemoattractant_gpu = implicit_diffusion(chemoattractant_gpu, DV) + (BETA * densities_gpu - ALPHA * chemoattractant_gpu) * DT
     densities = cp.asnumpy(cp.clip(densities_gpu, 0, None))
     chemoattractant = cp.asnumpy(cp.clip(chemoattractant_gpu, 0, None))
+    print(cp.sum(densities_gpu))
     image1.set_data(densities.astype(np.float32))
     image2.set_data(chemoattractant.astype(np.float32))
     canvas.update()
