@@ -24,7 +24,7 @@ class KellerSegel:
     
     def run(self, n_steps, save_every=None):
         history = []
-        for i in range(n_steps):
+        for i in range(n_steps + 1):
             self.step()
             if save_every and i % save_every == 0:
                 history.append((i, cp.asnumpy(self.densities).copy(), cp.asnumpy(self.chemoattractant).copy()))
