@@ -22,13 +22,22 @@ class KellerSegel:
         self.densities = new_densities
         self.chemoattractant = new_chemoattractant
     
-    def run(self, n_steps, save_every=None):
+    def run(self, n_steps, save_every=None, div_threshold=None):
         history = []
         for i in range(n_steps + 1):
             self.step()
             if save_every and i % save_every == 0:
                 history.append((i, cp.asnumpy(self.densities).copy(), cp.asnumpy(self.chemoattractant).copy()))
-        return history
+            if div_threshold and i > 1000 and i % 100 == 0:
+                density_range = np.max(self.densities) - np.min(self.densities)
+                if density_range >= div_threshold:
+                    return i
+        if save_every and div_threshold:
+            return history, None
+        if div_threshold:
+            return None
+        else:
+            return history
 
 # Spectral Methods:
 
