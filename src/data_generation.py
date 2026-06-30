@@ -39,11 +39,13 @@ class DataGenerator:
         for i in sensitivities:
             sim = KellerSegel(self.N, self.DU, self.DV, i, self.R, self.CAPACITY, self.ALPHA, self.BETA, self.DT, self.seed)
             div_steps[idx] = sim.run(n_steps=num_steps, div_threshold=div_threshold)
+            print(str(i)+" done, "+str(div_steps[idx])+" steps")
             idx += 1
         np.savez(file_path, div_step=np.asarray(div_steps, dtype=object))
 
-chi_values = np.round(np.linspace(4.1, 4.3, 11), decimals=5)
+chi_values = np.round(np.linspace(4.1025, 4.1025, 1), decimals=5)
 #chi_values = np.array([4.01, 4.03, 4.05, 4.07])
 
-gen = DataGenerator(N=256, DU=0.2, DV=1, SENSITIVITY=None, R=0.1, CAPACITY=2, ALPHA=0.1, BETA=1, DT=0.1, seed=4)
-gen.save_div_steps(num_steps=50000, div_threshold=0.15, sensitivities=chi_values, file_path="data/runs/keller_segel_logistic/density_divergence/test1.npz")
+gen = DataGenerator(N=512, DU=0.2, DV=1, SENSITIVITY=None, R=0.1, CAPACITY=2, ALPHA=0.1, BETA=1, DT=0.1, seed=4)
+#gen.save_div_steps(num_steps=50000, div_threshold=0.15, sensitivities=chi_values, file_path="data/runs/keller_segel_logistic/density_divergence/chi=4.1025aaaaa.npz")
+gen.save_densities(10000, 100, 3, "data/runs/keller_segel_logistic/high_resolution_snapshots/chi=3.npz")
