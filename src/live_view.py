@@ -5,10 +5,10 @@ from vispy import scene, app, color
 from keller_segel_logistic import KellerSegel
 
 DT = 0.1
-N = 512
+N = 256
 DU = 0.2
 DV = 1
-SENSITIVITY = 5
+SENSITIVITY = 4.1
 R = 0.1
 ALPHA = 0.1
 BETA = 1
