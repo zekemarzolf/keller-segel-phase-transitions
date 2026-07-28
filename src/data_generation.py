@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from keller_segel_logistic import KellerSegel
+from keller_segel_logistic import KellerSegelLogistic as KSL
 
 class DataGenerator:
     def __init__(self, N, DU, DV, SENSITIVITY, R, CAPACITY, ALPHA, BETA, DT, seed):
@@ -16,7 +16,7 @@ class DataGenerator:
         self.seed = seed
     
     def save_densities(self, num_steps, save_every, sensitivity, file_path):
-        sim = KellerSegel(self.N, self.DU, self.DV, sensitivity, self.R, self.CAPACITY, self.ALPHA, self.BETA, self.DT, self.seed)
+        sim = KSL(self.N, self.DU, self.DV, sensitivity, self.R, self.CAPACITY, self.ALPHA, self.BETA, self.DT, self.seed)
         history = sim.run(n_steps=num_steps, save_every=save_every)
         steps, us, vs = zip(*history)
         np.savez(file_path, step=np.asarray(steps, dtype=object), u=np.asarray(us, dtype=object), v=np.asarray(vs, dtype=object))
@@ -37,7 +37,7 @@ class DataGenerator:
         div_steps = np.empty(sensitivities.shape)
         idx = 0
         for i in sensitivities:
-            sim = KellerSegel(self.N, self.DU, self.DV, i, self.R, self.CAPACITY, self.ALPHA, self.BETA, self.DT, self.seed)
+            sim = KSL(self.N, self.DU, self.DV, i, self.R, self.CAPACITY, self.ALPHA, self.BETA, self.DT, self.seed)
             div_steps[idx] = sim.run(n_steps=num_steps, div_threshold=div_threshold)
             print(str(i)+" done, "+str(div_steps[idx])+" steps")
             idx += 1

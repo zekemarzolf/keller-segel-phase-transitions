@@ -2,35 +2,34 @@ import numpy as np
 import cupy as cp
 from vispy import plot
 from vispy import scene, app, color
-from keller_segel_logistic import KellerSegel
+from keller_segel_logistic import KellerSegelLogistic as KSL
+from keller_segel_fitzhugh_nagumo import KellerSegelFHN as KSFHN
+from barkley_model import BarkleySim
 
-DT = 0.1
 N = 256
-DU = 0.2
-DV = 1
-SENSITIVITY = 4.1
-R = 0.1
-ALPHA = 0.1
-BETA = 1
-CAPACITY = 2
 
-sim = KellerSegel(N, DU, DV, SENSITIVITY, R, CAPACITY, ALPHA, BETA, DT)
+#sim = KSFHN(N=256, DU=0.05, DV=2.0, CHI=5.0, CAP=2.0, ALPHA=0.01, TAU=8.0, GAMMA=0.5, GATE=0.1, Iext=0.0, DT=0.01)
+sim = BarkleySim(N=256, dt=0.01, dx=1.0, dw=0, eps=0.02, a=0.8, b=0.01)
 
 canvas = scene.SceneCanvas(keys='interactive', size=(1000, 1000), show=True)
 grid = canvas.central_widget.add_grid()
 view = grid.add_view(row=0, col=0)
-image1 = scene.visuals.Image(cp.asnumpy(sim.densities.astype(np.float32)), cmap='viridis', clim=(0, 5), parent=view.scene)
-image2 = scene.visuals.Image(cp.asnumpy(sim.chemoattractant.astype(np.float32)), cmap='viridis', clim=(0, 30), parent=view.scene)
+image1 = scene.visuals.Image(cp.asnumpy(sim.v.astype(np.float32)), cmap='viridis', parent=view.scene)
+image2 = scene.visuals.Image(cp.asnumpy(sim.w.astype(np.float32)), cmap='viridis', parent=view.scene)
 image2.transform = scene.STTransform(translate=(N+10, 0, 0))
+#image3 = scene.visuals.Image(cp.asnumpy(sim.w.astype(np.float32)), cmap='viridis', clim=(0, 2), parent=view.scene)
+#image3.transform = scene.STTransform(translate=(0, N+10, 0))
 view.camera = scene.cameras.PanZoomCamera(aspect=None)
-view.camera.set_range(x=(0, sim.densities.shape[0]), y=(0, sim.densities.shape[1]))
+view.camera.set_range(x=(0, sim.v.shape[0]), y=(0, sim.v.shape[1]))
 
+i = 0
 def update(ev):
+    global i
+    i += 1
     sim.step()
-    densities = cp.asnumpy(cp.clip(sim.densities, 0, None))
-    chemoattractant = cp.asnumpy(cp.clip(sim.chemoattractant, 0, None))
-    image1.set_data(densities.astype(np.float32))
-    image2.set_data(chemoattractant.astype(np.float32))
+    #image1.set_data(cp.asnumpy(cp.clip(sim.u, 0, None)))
+    image1.set_data(cp.asnumpy(sim.v))
+    image2.set_data(cp.asnumpy(sim.w))
     canvas.update()
 
 timer = app.Timer(interval=0.01, connect=update, start=True)

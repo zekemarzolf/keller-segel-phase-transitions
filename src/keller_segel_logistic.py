@@ -1,7 +1,7 @@
 import numpy as np
 import cupy as cp
 
-class KellerSegel:
+class KellerSegelLogistic:
     def __init__(self, N, DU, DV, SENSITIVITY, R, CAPACITY, ALPHA, BETA, DT, seed=None):
         rng = np.random.default_rng(seed)
         self.densities = cp.asarray(1.0 + rng.uniform(-0.1, 0.1, (N, N)))
