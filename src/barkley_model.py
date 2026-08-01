@@ -5,8 +5,8 @@ from vispy import scene, app, color, plot
 class BarkleySim:
     def __init__(self, N, dt, dx, dw, eps, a, b, seed=None):
         rng = np.random.default_rng(seed)
-        self.v = cp.zeros((N, N), dtype=np.float32)
-        self.w = cp.zeros((N, N), dtype=np.float32)
+        self.v = cp.asarray(0.0 + rng.uniform(0.0, 0.1, (N, N)))
+        self.w = cp.asarray(0.0 + rng.uniform(0.0, 0.2, (N, N)))
         cx, cy = N//2, N//2
         self.v[cy-5:cy+5, cx-40:cx+40] = 0.5
         self.w[cy-5:cy+5, cx-40:cx] = 1.0

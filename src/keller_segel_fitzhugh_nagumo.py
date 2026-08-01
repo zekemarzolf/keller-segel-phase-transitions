@@ -2,30 +2,27 @@ import numpy as np
 import cupy as cp
 
 class KellerSegelFHN:
-    def __init__(self, N, DU, DV, CHI, CAP, ALPHA, TAU, GAMMA, GATE, Iext, DT, seed=None):
+    def __init__(self, N, du, dv, CHI, CAP, ALPHA, BETA, dt, seed=None):
         rng = np.random.default_rng(seed)
         self.u = cp.asarray(1.0 + rng.uniform(-0.1, 0.1, (N, N)))
         self.v = cp.zeros((N, N), dtype=np.float32)
         self.w = cp.zeros((N, N), dtype=np.float32)
         cx, cy = N//2, N//2
-        self.v[cy-5:cy+5, cx-40:cx+40] = 0.9 
-        self.w[cy-5:cy+5, cx-40:cx] = 0.5       
+        self.v[cy-5:cy+5, cx-40:cx+40] = 0.5
+        self.w[cy-5:cy+5, cx-40:cx] = 1.0
         self.N = N
-        self.DU = DU
-        self.DV = DV
+        self.du = du
+        self.dv = dv
         self.CHI = CHI
         self.CAP = CAP
         self.ALPHA = ALPHA
-        self.TAU = TAU
-        self.GAMMA = GAMMA
-        self.GATE = GATE
-        self.DT = DT
-        self.Iext = Iext
+        self.BETA = BETA
+        self.dt = dt
     
     def step(self):
-        new_u = implicit_diffusion(self.u, self.DU, self.DT) - explicit_chemotaxis(self.u, self.v, self.CAP, self.CHI) * self.DT
-        new_v = implicit_diffusion(self.v, self.DV, self.DT) + (gated_production(self.v, self.w, self.GATE, self.Iext) - self.ALPHA * self.v) * self.DT
-        new_w = self.w + (self.v - self.GAMMA * self.w) / self.TAU * self.DT
+        new_u = self.u + barkley_diffusion_term(u=self.u, D=self.du, dt=self.dt, dx=1.0) - explicit_chemotaxis(self.u, self.v, self.CAP, self.CHI) * self.dt
+        new_v = self.v + barkley_diffusion_term(u=self.v, D=self.dv, dt=self.dt, dx=1.0) + f(self.v, self.w, eps=0.02, a=0.8, b=0.01) * self.dt + (self.BETA * self.u - self.ALPHA * self.v) * self.dt
+        new_w = self.w + barkley_diffusion_term(u=self.w, D=0, dt=self.dt, dx=1.0) + g(self.v, self.w) * self.dt
         self.u = new_u
         self.v = cp.maximum(new_v, 0)
         self.w = new_w
@@ -94,16 +91,29 @@ def finite_divergence(ux, uy):
 
 # PDE Terms:
 
-def implicit_diffusion(u, du, DT):
+def implicit_diffusion(u, du, dt):
     u_hat = cp.fft.fft2(u)
     Ny, Nx = u.shape
     kx = cp.fft.fftfreq(Nx, 1.0)
     ky = cp.fft.fftfreq(Ny, 1.0)
     KX, KY = cp.meshgrid(kx, ky)
     K2 = (2 * cp.pi * KX)**2 + (2 * cp.pi * KY)**2
-    u_hat_new = cp.exp(du * -K2 * DT) * u_hat
+    u_hat_new = cp.exp(du * -K2 * dt) * u_hat
     u_new = cp.fft.ifft2(u_hat_new).real
     return u_new
+
+def barkley_diffusion_term(u, D, dt, dx, dy=None):
+    if D == 0:
+        return 0
+    if dy is None:
+        dy = dx
+    nu_x = D * dt / dx**2
+    nu_y = D * dt / dy**2
+    lap = (
+        nu_x * (cp.roll(u, -1, axis=1) + cp.roll(u, 1, axis=1) - 2 * u) +
+        nu_y * (cp.roll(u, -1, axis=0) + cp.roll(u, 1, axis=0) - 2 * u)
+    )
+    return lap
 
 def explicit_chemotaxis(u, v, umax, chi0):
     grad_x, grad_y = spectral_gradient(v)
@@ -115,3 +125,9 @@ def explicit_chemotaxis(u, v, umax, chi0):
 
 def gated_production(v, w, a, Iext):
     return v * (v - a) * (1 - v) - w + Iext
+
+def f(v, w, eps, a, b):
+    return (1 / eps) * v * (1 - v) * (v - (w + b) / a)
+
+def g(v, w):
+    return v - w

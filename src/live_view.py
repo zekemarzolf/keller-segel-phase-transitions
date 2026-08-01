@@ -8,17 +8,17 @@ from barkley_model import BarkleySim
 
 N = 256
 
-#sim = KSFHN(N=256, DU=0.05, DV=2.0, CHI=5.0, CAP=2.0, ALPHA=0.01, TAU=8.0, GAMMA=0.5, GATE=0.1, Iext=0.0, DT=0.01)
-sim = BarkleySim(N=256, dt=0.01, dx=1.0, dw=0, eps=0.02, a=0.8, b=0.01)
+sim = KSFHN(N=256, du=0.05, dv=2.0, CHI=5.0, CAP=2.0, ALPHA=0.1, BETA=0.01, dt=0.01)
+#sim = BarkleySim(N=256, dt=0.01, dx=1.0, dw=0, eps=0.02, a=0.8, b=0.01)
 
 canvas = scene.SceneCanvas(keys='interactive', size=(1000, 1000), show=True)
 grid = canvas.central_widget.add_grid()
 view = grid.add_view(row=0, col=0)
-image1 = scene.visuals.Image(cp.asnumpy(sim.v.astype(np.float32)), cmap='viridis', parent=view.scene)
-image2 = scene.visuals.Image(cp.asnumpy(sim.w.astype(np.float32)), cmap='viridis', parent=view.scene)
+image1 = scene.visuals.Image(cp.asnumpy(sim.u.astype(np.float32)), cmap='viridis', parent=view.scene)
+image2 = scene.visuals.Image(cp.asnumpy(sim.v.astype(np.float32)), cmap='viridis', parent=view.scene)
 image2.transform = scene.STTransform(translate=(N+10, 0, 0))
-#image3 = scene.visuals.Image(cp.asnumpy(sim.w.astype(np.float32)), cmap='viridis', clim=(0, 2), parent=view.scene)
-#image3.transform = scene.STTransform(translate=(0, N+10, 0))
+image3 = scene.visuals.Image(cp.asnumpy(sim.w.astype(np.float32)), cmap='viridis', clim=(0, 2), parent=view.scene)
+image3.transform = scene.STTransform(translate=(2 * (N + 10), 0, 0))
 view.camera = scene.cameras.PanZoomCamera(aspect=None)
 view.camera.set_range(x=(0, sim.v.shape[0]), y=(0, sim.v.shape[1]))
 
@@ -27,9 +27,9 @@ def update(ev):
     global i
     i += 1
     sim.step()
-    #image1.set_data(cp.asnumpy(cp.clip(sim.u, 0, None)))
-    image1.set_data(cp.asnumpy(sim.v))
-    image2.set_data(cp.asnumpy(sim.w))
+    image1.set_data(cp.asnumpy(sim.u))
+    image2.set_data(cp.asnumpy(sim.v))
+    image3.set_data(cp.asnumpy(sim.w))
     canvas.update()
 
 timer = app.Timer(interval=0.01, connect=update, start=True)
