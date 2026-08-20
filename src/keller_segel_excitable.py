@@ -1,7 +1,7 @@
 import numpy as np
 import cupy as cp
 
-class KellerSegelFHN:
+class KellerSegelExcitable:
     def __init__(self, N, du, dv, CHI, CAP, ALPHA, BETA, dt, seed=None):
         rng = np.random.default_rng(seed)
         self.u = cp.asarray(0.2 + rng.uniform(-0.2, 0.2, (N, N)))
@@ -21,7 +21,7 @@ class KellerSegelFHN:
     def step(self):
         new_u = self.u + barkley_diffusion_term(u=self.u, D=self.du, dt=self.dt, dx=1.0) - explicit_chemotaxis(self.u, self.v, self.w, self.CAP, self.CHI) * self.dt
         new_v = self.v + barkley_diffusion_term(u=self.v, D=self.dv, dt=self.dt, dx=1.0) + f(self.v, self.w, eps=0.02, a=0.8, b=0.01) * self.dt + (self.BETA * self.u - self.ALPHA * self.v) * self.dt
-        new_w = self.w + barkley_diffusion_term(u=self.w, D=0, dt=self.dt, dx=1.0) + g(self.v, self.w) * self.dt
+        new_w = self.w + (barkley_diffusion_term(u=self.w, D=0, dt=self.dt, dx=1.0) + g(self.v, self.w)) * eps(self.u) * self.dt
         self.u = new_u
         self.v = cp.maximum(new_v, 0)
         self.w = new_w
@@ -116,7 +116,7 @@ def barkley_diffusion_term(u, D, dt, dx, dy=None):
 
 def explicit_chemotaxis(u, v, w, umax, chi0):
     grad_x, grad_y = spectral_gradient(v)
-    chi = chi0 * (1 - u / umax) * (2 - w)
+    chi = chi0 * (1 - u / umax) * (1 - w)
     flux_x = u * grad_x * chi
     flux_y = u * grad_y * chi
     div_uv = spectral_divergence(flux_x, flux_y)
@@ -130,3 +130,6 @@ def f(v, w, eps, a, b):
 
 def g(v, w):
     return v - w
+
+def eps(u):
+    return 1 + 1 / (1 + np.exp(-4 * u + 3))

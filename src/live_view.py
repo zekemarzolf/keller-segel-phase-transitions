@@ -3,12 +3,12 @@ import cupy as cp
 from vispy import plot
 from vispy import scene, app, color
 from keller_segel_logistic import KellerSegelLogistic as KSL
-from keller_segel_fitzhugh_nagumo import KellerSegelFHN as KSFHN
+from keller_segel_excitable import KellerSegelExcitable as KSE
 from barkley_model import BarkleySim
 
 N = 256
 
-sim = KSFHN(N=N, du=0.05, dv=0.1, CHI=2.0, CAP=2.0, ALPHA=0.1, BETA=0.2, dt=0.05)
+sim = KSE(N=N, du=0.05, dv=0.1, CHI=2.0, CAP=2.0, ALPHA=0.1, BETA=0.2, dt=0.05)
 #sim = BarkleySim(N=256, dt=0.01, dx=1.0, dw=0, eps=0.02, a=0.8, b=0.01)
 
 canvas = scene.SceneCanvas(keys='interactive', size=(1000, 1000), show=True)
