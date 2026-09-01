@@ -2,13 +2,14 @@ import numpy as np
 import cupy as cp
 
 class KellerSegelExcitable:
-    def __init__(self, N, du, dv, CHI, CAP, ALPHA, BETA, dt, seed=None):
+    def __init__(self, N, du, dv, CHI, CAP, ALPHA, BETA, dt, dx, seed=None):
         rng = np.random.default_rng(seed)
         self.u = cp.asarray(0.2 + rng.uniform(-0.2, 0.2, (N, N)))
         self.v = cp.zeros((N, N), dtype=np.float32)
         self.w = cp.zeros((N, N), dtype=np.float32)
         cx, cy = N//2, N//2
-        self.u[cy-2:cy+2, cx-2:cx+2] = 1.0
+        #self.u[cy-2:cy+2, cx-2:cx+2] = 1.0
+        #self.u[20:25, 20:25] = 2.0
         self.N = N
         self.du = du
         self.dv = dv
@@ -17,10 +18,11 @@ class KellerSegelExcitable:
         self.ALPHA = ALPHA
         self.BETA = BETA
         self.dt = dt
+        self.dx = dx
     
     def step(self):
-        new_u = self.u + barkley_diffusion_term(u=self.u, D=self.du, dt=self.dt, dx=1.0) - explicit_chemotaxis(self.u, self.v, self.w, self.CAP, self.CHI) * self.dt
-        new_v = self.v + barkley_diffusion_term(u=self.v, D=self.dv, dt=self.dt, dx=1.0) + f(self.v, self.w, eps=0.02, a=0.8, b=0.01) * self.dt + (self.BETA * self.u - self.ALPHA * self.v) * self.dt
+        new_u = self.u + barkley_diffusion_term(u=self.u, D=self.du, dt=self.dt, dx=self.dx) - explicit_chemotaxis(self.u, self.v, self.w, self.CAP, self.CHI, self.dx) * self.dt
+        new_v = self.v + barkley_diffusion_term(u=self.v, D=self.dv, dt=self.dt, dx=self.dx) + f(self.v, self.w, eps=0.02, a=0.8, b=0.01) * self.dt + (self.BETA * self.u - self.ALPHA * self.v) * self.dt
         new_w = self.w + (barkley_diffusion_term(u=self.w, D=0, dt=self.dt, dx=1.0) + g(self.v, self.w)) * eps(self.u) * self.dt
         self.u = new_u
         self.v = cp.maximum(new_v, 0)
@@ -45,11 +47,11 @@ class KellerSegelExcitable:
 
 # Spectral Methods:
 
-def spectral_gradient(u):
+def spectral_gradient(u, dx):
     u_hat = cp.fft.fft2(u)
     Ny, Nx = u.shape
-    kx = cp.fft.fftfreq(Nx, 1.0)
-    ky = cp.fft.fftfreq(Ny, 1.0)
+    kx = cp.fft.fftfreq(Nx, dx)
+    ky = cp.fft.fftfreq(Ny, dx)
     KX, KY = cp.meshgrid(kx, ky)
     ux_hat_grad = u_hat * KX * 1j
     uy_hat_grad = u_hat * KY * 1j
@@ -57,12 +59,12 @@ def spectral_gradient(u):
     uy_grad = cp.fft.ifft2(uy_hat_grad)
     return ux_grad, uy_grad
 
-def spectral_divergence(ux, uy):
+def spectral_divergence(ux, uy, dx):
     ux_hat = cp.fft.fft2(ux)
     uy_hat = cp.fft.fft2(uy)
     Ny, Nx = ux.shape
-    kx = cp.fft.fftfreq(Nx, 1.0)
-    ky = cp.fft.fftfreq(Ny, 1.0)
+    kx = cp.fft.fftfreq(Nx, dx)
+    ky = cp.fft.fftfreq(Ny, dx)
     KX, KY = cp.meshgrid(kx, ky)
     ux_hat_div = ux_hat * KX * 1j
     uy_hat_div = uy_hat * KY * 1j
@@ -76,7 +78,7 @@ def finite_gradient(u):
     grad_y, grad_x = cp.gradient(u)
     return grad_x, grad_y
 
-def finite_divergence(ux, uy):
+def finite_divergence(ux, uy, N):
     ux_div = cp.empty((N,N))
     ux_div[:,1:-1] = (ux[:,2:] - ux[:,:-2]) / 2
     ux_div[:,0] =  ux[:,1] - ux[:,0]
@@ -114,16 +116,13 @@ def barkley_diffusion_term(u, D, dt, dx, dy=None):
     )
     return lap
 
-def explicit_chemotaxis(u, v, w, umax, chi0):
-    grad_x, grad_y = spectral_gradient(v)
+def explicit_chemotaxis(u, v, w, umax, chi0, dx):
+    grad_x, grad_y = spectral_gradient(v, dx)
     chi = chi0 * (1 - u / umax) * (1 - w)
     flux_x = u * grad_x * chi
     flux_y = u * grad_y * chi
-    div_uv = spectral_divergence(flux_x, flux_y)
+    div_uv = spectral_divergence(flux_x, flux_y, dx)
     return div_uv
-
-def gated_production(v, w, a, Iext):
-    return v * (v - a) * (1 - v) - w + Iext
 
 def f(v, w, eps, a, b):
     return (1 / eps) * v * (1 - v) * (v - (w + b) / a)
@@ -132,4 +131,4 @@ def g(v, w):
     return v - w
 
 def eps(u):
-    return 1 + 1 / (1 + np.exp(-4 * u + 3))
+    return 0.5 + 0.5 / (1 + np.exp(-4 * u + 3))
