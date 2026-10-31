@@ -50,8 +50,8 @@ class KellerSegelExcitable:
 def spectral_gradient(u, dx):
     u_hat = cp.fft.fft2(u)
     Ny, Nx = u.shape
-    kx = cp.fft.fftfreq(Nx, dx)
-    ky = cp.fft.fftfreq(Ny, dx)
+    kx = 2 * cp.pi * cp.fft.fftfreq(Nx, dx)
+    ky = 2 * cp.pi * cp.fft.fftfreq(Ny, dx)
     KX, KY = cp.meshgrid(kx, ky)
     ux_hat_grad = u_hat * KX * 1j
     uy_hat_grad = u_hat * KY * 1j
@@ -63,8 +63,8 @@ def spectral_divergence(ux, uy, dx):
     ux_hat = cp.fft.fft2(ux)
     uy_hat = cp.fft.fft2(uy)
     Ny, Nx = ux.shape
-    kx = cp.fft.fftfreq(Nx, dx)
-    ky = cp.fft.fftfreq(Ny, dx)
+    kx = 2 * cp.pi * cp.fft.fftfreq(Nx, dx)
+    ky = 2 * cp.pi * cp.fft.fftfreq(Ny, dx)
     KX, KY = cp.meshgrid(kx, ky)
     ux_hat_div = ux_hat * KX * 1j
     uy_hat_div = uy_hat * KY * 1j

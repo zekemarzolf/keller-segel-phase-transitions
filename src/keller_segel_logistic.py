@@ -4,8 +4,8 @@ import cupy as cp
 class KellerSegelLogistic:
     def __init__(self, N, DU, DV, SENSITIVITY, R, CAPACITY, ALPHA, BETA, DT, seed=None):
         rng = np.random.default_rng(seed)
-        self.densities = cp.asarray(1.0 + rng.uniform(-0.1, 0.1, (N, N)))
-        self.chemoattractant = cp.asarray(1.0 + rng.uniform(-0.1, 0.1, (N, N)))
+        self.u = cp.asarray(1.0 + rng.uniform(-0.1, 0.1, (N, N)))
+        self.v = cp.asarray(1.0 + rng.uniform(-0.1, 0.1, (N, N)))
         self.N = N
         self.DU = DU
         self.DV = DV
@@ -17,19 +17,19 @@ class KellerSegelLogistic:
         self.DT = DT
     
     def step(self):
-        new_densities = implicit_diffusion(self.densities, self.DU, self.DT) - explicit_nonlinear(self.densities, self.chemoattractant, self.SENSITIVITY) * self.DT + logistic_growth(self.densities, self.R, self.CAPACITY) * self.DT
-        new_chemoattractant = implicit_diffusion(self.chemoattractant, self.DV, self.DT) + (self.BETA * self.densities - self.ALPHA * self.chemoattractant) * self.DT
-        self.densities = new_densities
-        self.chemoattractant = new_chemoattractant
+        new_densities = implicit_diffusion(self.u, self.DU, self.DT) - explicit_nonlinear(self.u, self.v, self.SENSITIVITY) * self.DT + logistic_growth(self.u, self.R, self.CAPACITY) * self.DT
+        new_chemoattractant = implicit_diffusion(self.v, self.DV, self.DT) + (self.BETA * self.u - self.ALPHA * self.v) * self.DT
+        self.u = new_densities
+        self.v = new_chemoattractant
     
     def run(self, n_steps, save_every=None, div_threshold=None):
         history = []
         for i in range(n_steps + 1):
             self.step()
             if save_every and i % save_every == 0:
-                history.append((i, cp.asnumpy(self.densities).copy(), cp.asnumpy(self.chemoattractant).copy()))
+                history.append((i, cp.asnumpy(self.u).copy(), cp.asnumpy(self.v).copy()))
             if div_threshold and i > 1000 and i % 100 == 0:
-                density_range = np.max(self.densities) - np.min(self.densities)
+                density_range = np.max(self.u) - np.min(self.u)
                 if density_range >= div_threshold:
                     return i
         if save_every and div_threshold:
@@ -44,8 +44,8 @@ class KellerSegelLogistic:
 def spectral_gradient(u):
     u_hat = cp.fft.fft2(u)
     Ny, Nx = u.shape
-    kx = cp.fft.fftfreq(Nx, 1.0)
-    ky = cp.fft.fftfreq(Ny, 1.0)
+    kx = 2 * cp.pi * cp.fft.fftfreq(Nx, 1.0)
+    ky = 2 * cp.pi * cp.fft.fftfreq(Ny, 1.0)
     KX, KY = cp.meshgrid(kx, ky)
     ux_hat_grad = u_hat * KX * 1j
     uy_hat_grad = u_hat * KY * 1j
@@ -57,8 +57,8 @@ def spectral_divergence(ux, uy):
     ux_hat = cp.fft.fft2(ux)
     uy_hat = cp.fft.fft2(uy)
     Ny, Nx = ux.shape
-    kx = cp.fft.fftfreq(Nx, 1.0)
-    ky = cp.fft.fftfreq(Ny, 1.0)
+    kx = 2 * cp.pi * cp.fft.fftfreq(Nx, 1.0)
+    ky = 2 * cp.pi * cp.fft.fftfreq(Ny, 1.0)
     KX, KY = cp.meshgrid(kx, ky)
     ux_hat_div = ux_hat * KX * 1j
     uy_hat_div = uy_hat * KY * 1j
